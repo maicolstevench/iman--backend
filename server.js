@@ -130,29 +130,55 @@ if (!fs.existsSync('uploads/qr-codes')) {
   fs.mkdirSync('uploads/qr-codes', { recursive: true });
 }
 
-// Inicializar la base de datos al iniciar
+// Función para intentar iniciar el servidor en un puerto específico
+const startServerOnPort = (port) => {
+  return new Promise((resolve, reject) => {
+    const server = app.listen(port, () => {
+      console.log(`\n🚀 Servidor corriendo en puerto ${port}`);
+      console.log(`📊 Dashboard: http://localhost:${port}/api/test-db`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}\n`);
+      resolve(server);
+    });
+
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`❌ El puerto ${port} está en uso, intentando con el puerto ${port + 1}...`);
+        resolve(null); // No rechazar, solo indicar que este puerto no está disponible
+      } else {
+        console.error('❌ Error al iniciar el servidor:', error);
+        reject(error);
+      }
+    });
+  });
+};
+
+// Inicializar la base de datos y el servidor
 async function startServer() {
   try {
     console.log('Inicializando base de datos...');
     await initDatabase();
     console.log('✅ Base de datos inicializada correctamente');
     
-    // Iniciar el servidor después de inicializar la base de datos
-    const server = app.listen(PORT, () => {
-      console.log(`\n🚀 Servidor corriendo en puerto ${PORT}`);
-      console.log(`📊 Dashboard: http://localhost:${PORT}/api/test-db`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}\n`);
-    });
-
-    // Manejo de errores del servidor
-    server.on('error', (error) => {
-      if (error.code === 'EADDRINUSE') {
-        console.error(`❌ Error: El puerto ${PORT} ya está en uso.`);
-      } else {
-        console.error('❌ Error al iniciar el servidor:', error);
+    // Intentar iniciar el servidor en el puerto especificado o en puertos siguientes
+    let currentPort = PORT;
+    const MAX_ATTEMPTS = 5; // Número máximo de puertos a intentar
+    let server = null;
+    
+    for (let i = 0; i < MAX_ATTEMPTS && !server; i++) {
+      try {
+        server = await startServerOnPort(currentPort);
+        if (!server) {
+          currentPort++; // Intentar con el siguiente puerto
+        }
+      } catch (error) {
+        console.error('Error inesperado al iniciar el servidor:', error);
+        throw error;
       }
-      process.exit(1);
-    });
+    }
+    
+    if (!server) {
+      throw new Error(`No se pudo iniciar el servidor en los puertos ${PORT}-${currentPort-1}`);
+    }
   } catch (error) {
     console.error('❌ Error al inicializar la base de datos:', error);
     process.exit(1);
