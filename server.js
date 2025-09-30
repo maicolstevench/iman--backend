@@ -13,6 +13,10 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Importar e inicializar la base de datos
+const { initDatabase } = require('./scripts/initDatabase');
+initDatabase().catch(console.error);
+
 // Database connection pool
 let dbConfig;
 
@@ -330,11 +334,14 @@ app.post('/api/auth/login', async (req, res) => {
     }
     
     console.log('Buscando usuario con email:', email);
-    // CORREGIDO: Usar tabla 'usuarios' y columna 'activo'
+    console.log('Buscando usuario con email:', email);
+    // Usar tabla 'usuario' (sin 's' al final)
     const [users] = await pool.execute(
-      'SELECT * FROM usuarios WHERE email = ? AND activo = TRUE',
+      'SELECT * FROM usuario WHERE email = ? AND activo = TRUE',
       [email]
     );
+    
+    console.log('Usuarios encontrados:', users.length);
     
     console.log('Usuarios encontrados:', users.length);
     
