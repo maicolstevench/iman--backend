@@ -147,4 +147,9 @@ async function initDatabase() {
   }
 }
 
-initDatabase();
+module.exports = { initDatabase };
+
+// Solo ejecutar si se llama directamente
+if (require.main === module) {
+  initDatabase().catch(console.error);
+}
