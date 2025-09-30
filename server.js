@@ -102,7 +102,7 @@ process.on('unhandledRejection', (err) => {
 const allowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
-  'https://frontend-inmanfinal.onrender.com'
+  'https://inman-frontend.onrender.com'
 ];
 
 app.use(cors({
