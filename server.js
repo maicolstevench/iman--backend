@@ -88,27 +88,6 @@ app.use(express.urlencoded({ extended: true }));
 // Importar e inicializar la base de datos
 const { initDatabase } = require('./scripts/initDatabase');
 
-// Inicializar la base de datos al iniciar
-async function startServer() {
-  try {
-    console.log('Inicializando base de datos...');
-    await initDatabase();
-    console.log('✅ Base de datos inicializada correctamente');
-    
-    // Iniciar el servidor después de inicializar la base de datos
-    app.listen(PORT, () => {
-      console.log(`\n🚀 Servidor corriendo en puerto ${PORT}`);
-      console.log(`📊 Dashboard: http://localhost:${PORT}/api/test-db`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}\n`);
-    });
-  } catch (error) {
-    console.error('❌ Error al inicializar la base de datos:', error);
-  }
-}
-
-// Iniciar todo
-startServer();
-
 // Configuración del almacenamiento de sesiones
 const sessionStore = new MySQLStore({
   clearExpired: true,
@@ -134,8 +113,9 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    secure: false, // Set to true in production with HTTPS
-    httpOnly: true
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'lax'
   }
 }));
 
@@ -149,6 +129,38 @@ if (!fs.existsSync('uploads')) {
 if (!fs.existsSync('uploads/qr-codes')) {
   fs.mkdirSync('uploads/qr-codes', { recursive: true });
 }
+
+// Inicializar la base de datos al iniciar
+async function startServer() {
+  try {
+    console.log('Inicializando base de datos...');
+    await initDatabase();
+    console.log('✅ Base de datos inicializada correctamente');
+    
+    // Iniciar el servidor después de inicializar la base de datos
+    const server = app.listen(PORT, () => {
+      console.log(`\n🚀 Servidor corriendo en puerto ${PORT}`);
+      console.log(`📊 Dashboard: http://localhost:${PORT}/api/test-db`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}\n`);
+    });
+
+    // Manejo de errores del servidor
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`❌ Error: El puerto ${PORT} ya está en uso.`);
+      } else {
+        console.error('❌ Error al iniciar el servidor:', error);
+      }
+      process.exit(1);
+    });
+  } catch (error) {
+    console.error('❌ Error al inicializar la base de datos:', error);
+    process.exit(1);
+  }
+}
+
+// Iniciar todo
+startServer();
 
 // Authentication middleware
 const requireAuth = (req, res, next) => {
