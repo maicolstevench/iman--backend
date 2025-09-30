@@ -370,7 +370,7 @@ app.post('/api/auth/login', async (req, res) => {
     
     // Asegurarnos de seleccionar la columna de contraseña correcta
     const [users] = await pool.execute(
-      'SELECT id, nombre, email, password as contrasena, perfil_id as rol, activo FROM usuario WHERE email = ? AND activo = TRUE',
+      'SELECT id, nombre, email, password as contrasena, perfil_id as rol, activo FROM usuarios WHERE email = ? AND activo = TRUE'
       [email]
     );
     
