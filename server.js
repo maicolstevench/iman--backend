@@ -324,20 +324,41 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     
+    if (!email || !password) {
+      console.log('Faltan credenciales');
+      return res.status(400).json({ success: false, error: 'Email y contraseña son requeridos' });
+    }
+    
+    console.log('Buscando usuario con email:', email);
     // CORREGIDO: Usar tabla 'usuarios' y columna 'activo'
     const [users] = await pool.execute(
       'SELECT * FROM usuarios WHERE email = ? AND activo = TRUE',
       [email]
     );
     
+    console.log('Usuarios encontrados:', users.length);
+    
     if (users.length === 0) {
-      return res.status(401).json({ success: false, error: 'Usuario no encontrado' });
+      console.log('Usuario no encontrado o inactivo');
+      return res.status(401).json({ success: false, error: 'Usuario no encontrado o inactivo' });
     }
     
     const user = users[0];
+    console.log('Usuario encontrado:', { id: user.id, email: user.email, rol: user.rol });
     
-    // For demo purposes, using plain text password comparison
-    const isValidPassword = password === 'password123';
+    // Comparación de contraseña (compatible con texto plano y bcrypt)
+    let isValidPassword = false;
+    
+    // Si la contraseña en la base de datos es 'password123' (sin hashear)
+    if (user.contrasena === 'password123' && password === 'password123') {
+      isValidPassword = true;
+    } 
+    // Si la contraseña está hasheada con bcrypt
+    else if (user.contrasena && user.contrasena.startsWith('$2a$')) {
+      isValidPassword = await bcrypt.compare(password, user.contrasena);
+    }
+    
+    console.log('Contraseña válida:', isValidPassword);
     
     if (!isValidPassword) {
       return res.status(401).json({ success: false, error: 'Credenciales incorrectas' });
@@ -786,3 +807,5 @@ app.listen(PORT, () => {
 });
 
 module.exports = app;
+
+
