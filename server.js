@@ -3,8 +3,8 @@ const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
 const session = require('express-session');
-const MySQLStore = require('express-mysql-session')(session);
 const bcrypt = require('bcryptjs');
+const MySQLStore = require('express-mysql-session')(session);
 const qrcode = require('qrcode');
 const multer = require('multer');
 const path = require('path');
@@ -208,7 +208,7 @@ const getUserPermissions = (rol) => {
       can_view_dashboard: true,
       can_view_monitoreo: true,
       can_use_qr: true,
-      modules: ['dashboard', 'equipos', 'reportes', 'monitoreo', 'mantenimientos', 'usuarios']
+      modules: ['dashboard', 'equipos', 'reportes', 'monitoreo', 'mantenimientos', 'usuario']
     },
     'tecnico': {
       can_manage_users: false,
@@ -404,7 +404,7 @@ app.post('/api/auth/login', async (req, res) => {
     
     // Actualizar última sesión
     await pool.execute(
-      'UPDATE usuarios SET fecha_ultima_sesion = CURRENT_TIMESTAMP WHERE id = ?',
+      'UPDATE usuario SET fecha_ultima_sesion = CURRENT_TIMESTAMP WHERE id = ?',
       [user.id]
     );
     
@@ -447,7 +447,7 @@ app.get('/api/auth/current-user', async (req, res) => {
     
     // CORREGIDO: Usar tabla 'usuarios' sin JOIN
     const [users] = await pool.execute(
-      'SELECT * FROM usuarios WHERE id = ?',
+      'SELECT * FROM usuario WHERE id = ?',
       [req.session.userId]
     );
     
@@ -499,7 +499,7 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res) => {
       SELECT a.id, a.descripcion, a.fecha_actividad, u.nombre as usuario,
              CONCAT(te.nombre, ' - ', m.nombre, ' ', e.modelo) as equipo
       FROM actividad a
-      JOIN usuarios u ON a.usuario_id = u.id
+      JOIN usuario u ON a.usuario_id = u.id
       JOIN equipo e ON a.equipo_id = e.id
       JOIN tipoEquipo te ON e.tipoEquipo_id = te.id
       JOIN marca m ON e.marca_id = m.id
@@ -587,7 +587,7 @@ app.get('/api/actividades', requireAuth, async (req, res) => {
              te.nombre as equipo_tipo, m.nombre as equipo_marca, e.modelo as equipo_modelo,
              ea.nombre as estado_anterior, en.nombre as estado_nuevo
       FROM actividad a
-      JOIN usuarios u ON a.usuario_id = u.id
+      JOIN usuario u ON a.usuario_id = u.id
       JOIN equipo e ON a.equipo_id = e.id
       JOIN tipoEquipo te ON e.tipoEquipo_id = te.id
       JOIN marca m ON e.marca_id = m.id
