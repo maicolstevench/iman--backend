@@ -13,10 +13,6 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Importar e inicializar la base de datos
-const { initDatabase } = require('./scripts/initDatabase');
-initDatabase().catch(console.error);
-
 // Database connection pool
 let dbConfig;
 
@@ -52,57 +48,16 @@ if (process.env.DATABASE_URL) {
   };
 }
 
+// Crear el pool de conexiones
 const pool = mysql.createPool(dbConfig);
 
-// Configuración del almacenamiento de sesiones
-const sessionStore = new MySQLStore({
-  clearExpired: true,
-  checkExpirationInterval: 900000, // 15 minutos
-  expiration: 86400000, // 24 horas
-  createDatabaseTable: true,
-  schema: {
-    tableName: 'sessions',
-    columnNames: {
-      session_id: 'session_id',
-      expires: 'expires',
-      data: 'data'
-    }
-  }
-}, pool);
-
-// Error handlers
-process.on('uncaughtException', (err) => {
-  console.error(' Uncaught Exception:', err);
-  process.exit(1);
+// Middleware para manejar errores de base de datos
+app.use((err, req, res, next) => {
+  console.error('Error en la base de datos:', err);
+  res.status(500).json({ error: 'Error interno del servidor' });
 });
 
-process.on('unhandledRejection', (err) => {
-  console.error(' Unhandled Rejection:', err);
-  process.exit(1);
-});
-
-// Middleware CORS mejorado
-// app.use((req, res, next) => {
-//   res.header('Access-Control-Allow-Origin', ['http://localhost:5173','https://frontend-inmanfinal.onrender.com']);
-//   res.header('Access-Control-Allow-Credentials', 'true');
-//   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-//   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  
-//   if (req.method === 'OPTIONS') {
-//     res.sendStatus(200);
-//   } else {
-//     next();
-//   }
-// });
-
-// app.use(cors({
-//   origin: ['http://localhost:5173', 'http://127.0.0.1:5173','https://frontend-inmanfinal.onrender.com'],
-//   credentials: true,
-//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-//   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-// }));
-
-
+// Configuración de CORS
 const allowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
@@ -129,6 +84,46 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Importar e inicializar la base de datos
+const { initDatabase } = require('./scripts/initDatabase');
+
+// Inicializar la base de datos al iniciar
+async function startServer() {
+  try {
+    console.log('Inicializando base de datos...');
+    await initDatabase();
+    console.log('✅ Base de datos inicializada correctamente');
+    
+    // Iniciar el servidor después de inicializar la base de datos
+    app.listen(PORT, () => {
+      console.log(`\n🚀 Servidor corriendo en puerto ${PORT}`);
+      console.log(`📊 Dashboard: http://localhost:${PORT}/api/test-db`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}\n`);
+    });
+  } catch (error) {
+    console.error('❌ Error al inicializar la base de datos:', error);
+  }
+}
+
+// Iniciar todo
+startServer();
+
+// Configuración del almacenamiento de sesiones
+const sessionStore = new MySQLStore({
+  clearExpired: true,
+  checkExpirationInterval: 900000, // 15 minutos
+  expiration: 86400000, // 24 hours
+  createDatabaseTable: true,
+  schema: {
+    tableName: 'sessions',
+    columnNames: {
+      session_id: 'session_id',
+      expires: 'expires',
+      data: 'data'
+    }
+  }
+}, pool);
 
 // Session configuration
 app.use(session({
@@ -334,14 +329,12 @@ app.post('/api/auth/login', async (req, res) => {
     }
     
     console.log('Buscando usuario con email:', email);
-    console.log('Buscando usuario con email:', email);
-    // Usar tabla 'usuario' (sin 's' al final)
+    
+    // Asegurarnos de seleccionar la columna de contraseña correcta
     const [users] = await pool.execute(
-      'SELECT * FROM usuario WHERE email = ? AND activo = TRUE',
+      'SELECT id, nombre, email, password as contrasena, perfil_id as rol, activo FROM usuario WHERE email = ? AND activo = TRUE',
       [email]
     );
-    
-    console.log('Usuarios encontrados:', users.length);
     
     console.log('Usuarios encontrados:', users.length);
     
@@ -814,5 +807,3 @@ app.listen(PORT, () => {
 });
 
 module.exports = app;
-
-
